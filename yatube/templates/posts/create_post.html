@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}
+  {% if form_status == "create" %}Новый пост{% elif form_status == "update" %}Редактировать пост{% endif %}
+{% endblock %}
+{% block content %}
+  {% include 'posts/includes/post_form.html' %}
+{% endblock %}
