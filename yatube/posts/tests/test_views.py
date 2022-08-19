@@ -172,10 +172,6 @@ class PostsPagesTests(TestCase):
         response = self.authorized_client.get('/sdgfsadfg')
         self.assertTemplateUsed(response, 'core/404.html')
 
-    def test_403_page(self):
-        """Ошибка 403 вызывает кастомный шаблон"""
-        pass
-
     def test_post_context_check(self):
         """Главная страница получает данные из кэша"""
         response = self.authorized_client.get(reverse('posts:posts_index'))
@@ -196,6 +192,7 @@ class PostsPaginatorTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.author = User.objects.create_user(username='author')
+        cls.user = User.objects.create_user(username='user')
 
         posts_count_for_test = 12
         cls.posts_on_second_page = (
@@ -212,15 +209,21 @@ class PostsPaginatorTests(TestCase):
         ]
         Post.objects.bulk_create(cls.post)
 
+        Follow.objects.create(
+            user=cls.user,
+            author=cls.author,
+        )
+
         cls.pages_url = {
             'index': '/',
             'group_list': f'/group/{cls.group.slug}/',
             'profile': f'/profile/{cls.author}/',
+            'follow': '/follow/'
         }
 
     def setUp(self):
         self.authorized_client = Client()
-        self.authorized_client.force_login(self.author)
+        self.authorized_client.force_login(self.user)
 
     def test_first_page_contains_ten_records(self):
         for pages in self.pages_url.values():
@@ -261,6 +264,7 @@ class PostsFollowingTests(TestCase):
         self.user = User.objects.create_user(username='user')
         self.user_client = Client()
         self.user_client.force_login(self.user)
+        self.user_following_author()
 
     def user_following_author(self):
         self.user_client.get(
@@ -269,7 +273,6 @@ class PostsFollowingTests(TestCase):
 
     def test_post_following(self):
         """Авторизированный пользователь может подписаться на автора"""
-        self.user_following_author()
 
         self.assertTrue(
             Follow.objects.filter(
@@ -280,7 +283,6 @@ class PostsFollowingTests(TestCase):
 
     def test_post_following(self):
         """Авторизированный пользователь может отписаться от автора"""
-        self.user_following_author()
         self.user_client.get(
             reverse('posts:profile_unfollow', kwargs={'username': self.author})
         )
@@ -299,7 +301,6 @@ class PostsFollowingTests(TestCase):
 
     def test_index_page_show_correct_context(self):
         """Шаблон follow сформирован с правильным контекстом."""
-        self.user_following_author()
 
         response = self.user_client.get(reverse('posts:follow_index'))
         post = response.context['page_obj'][0]
@@ -313,3 +314,36 @@ class PostsFollowingTests(TestCase):
         post = response.context['page_obj']
         for data in post:
             self.assertEqual(data, None)
+
+    def test_new_posts_from_followng_author(self):
+        """Новый пост от отслеживаемого автора появляется
+        на странице подписок."""
+        response = self.user_client.get(reverse('posts:follow_index'))
+        post_count = len(response.context['page_obj'])
+
+        Post.objects.create(
+            author=self.author,
+            text='text'
+        )
+
+        response = self.user_client.get(reverse('posts:follow_index'))
+        second_post_count = len(response.context['page_obj'])
+
+        self.assertEqual(second_post_count, post_count + 1)
+
+    def test_new_posts_from_user(self):
+        """Новый пост от неотслеживаемого автора непоявляется
+        на странице подписок."""
+        response = self.user_client.get(reverse('posts:follow_index'))
+        post_count = len(response.context['page_obj'])
+
+        random_user = User.objects.create_user(username='random_user')
+        Post.objects.create(
+            author=random_user,
+            text='text'
+        )
+
+        response = self.user_client.get(reverse('posts:follow_index'))
+        second_post_count = len(response.context['page_obj'])
+
+        self.assertEqual(second_post_count, post_count)

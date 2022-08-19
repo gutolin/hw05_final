@@ -1,5 +1,5 @@
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render, redirect
 from django.views.decorators.cache import cache_page
 
@@ -53,13 +53,7 @@ def profile(request, username):
     """
     author = get_object_or_404(User, username=username)
     if request.user.is_authenticated:
-        check_following = Follow.objects.filter(
-            user=request.user, author=author).count()
-
-        if check_following > 0:
-            following = True
-        else:
-            following = False
+        following = author.following.exists()
     else:
         following = False
 
@@ -160,9 +154,7 @@ def profile_follow(request, username):
     user = request.user
     if author != user:
         Follow.objects.get_or_create(user=user, author=author)
-        return redirect('posts:follow_index')
-    else:
-        return redirect('posts:follow_index')
+    return redirect('posts:follow_index')
 
 
 @login_required

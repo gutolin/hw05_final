@@ -3,12 +3,12 @@
 <article>
   <ul>
     {% with request.resolver_match.view_name as view_name %} 
+    {% if view_name  != 'posts:profile' %}
     <li>
       Автор:
-      {% if view_name  != 'posts:profile' %}
         <a href="{% url 'posts:profile' post.author.username %}">{{ post.author.get_full_name }}</a>
-      {% endif %}
     </li>
+    {% endif %}
     <li>
       Дата публикации: {{ post.pub_date|date:"d E Y" }}
     </li>
