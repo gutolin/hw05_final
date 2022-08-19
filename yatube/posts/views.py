@@ -52,10 +52,7 @@ def profile(request, username):
     от автора.
     """
     author = get_object_or_404(User, username=username)
-    if request.user.is_authenticated:
-        following = author.following.exists()
-    else:
-        following = False
+    following = request.user.is_authenticated and author.following.exists()
 
     posts = author.posts.all()
     page_number = request.GET.get('page')
